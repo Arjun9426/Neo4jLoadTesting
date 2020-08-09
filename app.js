@@ -4,184 +4,23 @@ var neo4j = require("neo4j-driver");
 const hostname = "localhost";
 const port = 4321;
 
+const SDC = require("statsd-client");
+const sdc = new SDC({ host: "localhost", port: 8125, prefix: "neo4jClient" });
+
+function pushMetric(metricName, timer) {
+  sdc.timing(metricName + ".timer", timer);
+}
+
 var driver = neo4j.driver(
-  "bolt://13.232.114.193",
-  neo4j.auth.basic("neo4j", "123456"),
+  "bolt://172.31.35.233",
+  neo4j.auth.basic("neo4j", "1234567372412389"),
   {
-    maxConnectionLifetime: 60 * 60 * 1000, // 1 hour
-    maxConnectionPoolSize: 100000,
-    //encrypted: "ENCRYPTION_ON",
-    //trust: "TRUST_CUSTOM_CA_SIGNED_CERTIFICATES",
-    /// trustedCertificates: [process.env.NEO4J_TRUSTED_CERTS],
+    maxConnectionLifetime: 3 * 60 * 60 * 1000,
+    maxConnectionPoolSize: 10000,
+    connectionAcquisitionTimeout: 300 * 1000,
   }
 );
-
-app.get("/getFollowing", (req, res) => {
-  var session = driver.session();
-  console.log(typeof Number(req.query.userId));
-  session
-    .run("MATCH (a:Users { name: $username})-->(b) RETURN b order by b.name", {
-      username: Number(req.query.userId),
-    })
-    .then((result) => {
-      var data = [];
-      result.records.forEach((element) => {
-        console.log(element._fields[0].properties);
-        data.push(element._fields[0].properties);
-      });
-      res.send(data);
-      //  result.records.forEach((element) => {
-      //  console.log(element._fields[0].properties);
-      // });
-    })
-    .catch((err) => {
-      console.log("error: " + err);
-      //session.close();
-    });
-});
-
-app.get("/getFollowers", (req, res) => {
-  // who follows me
-  var session = driver.session();
-  session
-    .run("MATCH (a:lassan { name: $username})<--(b) RETURN b order by b.name", {
-      username: Number(req.query.userId),
-    })
-    .then((result) => {
-      var data = [];
-      result.records.forEach((element) => {
-        console.log(element._fields[0].properties);
-        data.push(element._fields[0].properties);
-      });
-      res.send(data);
-      //  result.records.forEach((element) => {
-      //  console.log(element._fields[0].properties);
-      // });
-    })
-    .catch((err) => {
-      console.log("error: " + err);
-      //session.close();
-    });
-});
-var start = new Date().getTime();
-
-var totalnode = 10000;
-var totalrelations = 200;
-
-var dis = 10; // distance between two consecutive neighbour
-
-var startname;
-
-var endname;
-
-// code to insert relationships supported 5000 entries per try
-var gh = 0;
-var driverArray = [];
-/*
-var gh1 = driver.session();
-var gh2 = driver.session();
-console.log(gh1 != gh2);
-*/
-
-async function asyncCall1() {
-  var session = driver.session();
-  try {
-    console.log("in try " + iteration);
-    var result = await session.run(
-      "MATCH (a:Users),(b:Users) WHERE a.name = $aname AND b.name = $bname CREATE (a)-[r:Friend]->(b) RETURN r",
-      {
-        aname: startname,
-        bname: endname,
-      }
-    );
-    gh++;
-    console.log(
-      result.records[0]._fields[0].start.low +
-        " " +
-        result.records[0]._fields[0].end.low
-    );
-    if (gh == 20000) {
-      var end = new Date().getTime();
-      var timee = end - start;
-      console.log("Execution time: " + time / 1000);
-    }
-  } catch (err) {
-    console.log(err);
-  } finally {
-    await session.close();
-    console.log("in final " + iteration);
-  }
-}
-
-/*
-for (var i = 1901; i <= 2000; i++) {
-  startname = i;
-  for (var j = 1; j <= totalrelations; j++) {
-    endname = ((startname + j * dis - 2) % totalnode) + 1;
-    //  console.log(startname + " " + endname);
-    var session = driver.session();
-    session
-      .run(
-        "MATCH (a:Users),(b:Users) WHERE a.name = $aname AND b.name = $bname CREATE (a)-[r:Friend]->(b) RETURN r",
-        {
-          aname: startname,
-          bname: endname,
-        }
-      )
-      .then((result) => {
-        //session.close();
-        console.log(
-          result.records[0]._fields[0].start.low +
-            " " +
-            result.records[0]._fields[0].end.low
-        );
-        //  result.records.forEach((element) => {
-        //  console.log(element._fields[0].properties);
-        // });
-      })
-      .catch((err) => {
-        console.log("error: " + err);
-        //session.close();
-      });
-    
-    asyncCall1();
-  }
-}
-*/
-// Code to insert entries in db with names as 1,2,3....totalnode
-
-async function asyncCall2(iteration) {
-  // console.log(iteration);
-  var session = driver.session();
-
-  try {
-    ///console.log("in try " + iteration);
-    var result = await session.run(
-      "create (a:Humans{name:$name, age:$age, phone:$phone, rajya:$rajya}) RETURN a",
-      {
-        name: doc.name,
-        age: doc.age,
-        phone: doc.phone,
-        rajya: doc.rajya,
-      }
-    );
-    gh++;
-    result.records.forEach((element) => {
-      console.log(element._fields[0].properties);
-    });
-    if (gh == totalnode) {
-      var end = new Date().getTime();
-      var time = end - start;
-      console.log("Execution time: " + time / 1000);
-    }
-  } catch (err) {
-    console.log(err);
-  } finally {
-    //console.log("in final " + iteration);
-    await session.close();
-    //return "okay";
-  }
-}
+var TOTAL_NODE = 0;
 
 var bharatbhoomi = [
   "Hastinapur",
@@ -193,26 +32,108 @@ var bharatbhoomi = [
   "Ghandhar",
   "Kashi",
 ];
-var doc = {
-  name: 1,
-  age: 1,
-  phone: 1,
-  rajya: "random",
-};
 
-var gh = 0;
-async function insertElements() {
-  for (var i = 0; i < totalnode; i++) {
-    doc.name = i + 1;
-    doc.phone = i + 1;
-    doc.age = totalnode - i;
-    doc.rajya = bharatbhoomi[i % bharatbhoomi.length];
+var relation = [];
 
-    /*
+function RelationsMappingArray() {
+  for (var i = 0; i < 100; i++) {
+    relation.push(0);
+  }
+  // relations:   200,100,50,25,10,0
+  // frequencies: 5,10,20,30,25,10
+  for (var i = 0; i < 100; i += 20) {
+    relation[i] = 200;
+  }
+  for (var i = 4; i < 100; i += 10) {
+    relation[i] = 100;
+  }
+
+  var l = 0;
+  var count = 0;
+
+  for (var i = 0; i < 100 && count < 20; i++) {
+    if (relation[i] != 0) {
+      continue;
+    }
+    if (l == 2) {
+      relation[i] = 50;
+      l = 0;
+      count++;
+    } else {
+      l++;
+    }
+  }
+  l = 0;
+  count = 0;
+  for (var i = 0; i < 100 && count < 30; i++) {
+    if (relation[i] != 0) {
+      continue;
+    }
+    if (l == 1) {
+      relation[i] = 25;
+      count++;
+      l = 0;
+    } else {
+      l++;
+    }
+  }
+
+  count = 0;
+  for (var i = 99; i >= 0 && count < 25; i--) {
+    if (relation[i] != 0) {
+      continue;
+    }
+    count++;
+    relation[i] = 10;
+  }
+}
+
+function insertEdges(startNode, endNode) {
+  for (var i = startNode; i <= endNode; i++) {
+    var startname = i;
+    var totalRelations = relation[(i - 1) % 100];
+    for (var j = 1; j <= totalRelations; j++) {
+      var dis = TOTAL_NODE / totalRelations;
+      var endname = ((startname + j * dis - 2) % TOTAL_NODE) + 1;
+      var session = driver.session();
+      const timer = new Date();
+      sdc.timing("writeEdge.getFollowing.ops" + ".timer", 1);
+      session
+        .run(
+          "MATCH (a:User),(b:User) WHERE a.name = $aname AND b.name = $bname CREATE (a)-[r:Follow]->(b) RETURN r",
+          {
+            aname: startname,
+            bname: endname,
+          }
+        )
+        .then((result) => {
+          pushMetric("writeEdge.getFollowing", timer);
+          pushMetric("writeEdgeStatus.getFollowing.success", timer);
+        })
+        .catch((err) => {
+          pushMetric("writeEdgeStatus.getFollowing.error", timer);
+        })
+        .finally(() => {
+          session.close();
+        });
+    }
+  }
+}
+
+function insertElements(startNode, endNode) {
+  for (var i = startNode; i <= endNode; i++) {
+    var doc = {};
+    doc.name = i;
+    doc.phone = i;
+    doc.age = i;
+    doc.rajya = bharatbhoomi[(i - 1) % bharatbhoomi.length];
+
     var session = driver.session();
+    const timer = new Date();
+    sdc.timing("writeNode.getFollowing.ops" + ".timer", 1);
     session
       .run(
-        "create (a:Person{name:$name, age:$age, phone:$phone, rajya:$rajya}) RETURN a",
+        "create (a:Users{name:$name, age:$age, phone:$phone, rajya:$rajya}) RETURN a",
         {
           name: doc.name,
           age: doc.age,
@@ -221,45 +142,38 @@ async function insertElements() {
         }
       )
       .then((result) => {
-        gh++;
-        result.records.forEach((element) => {
-          console.log(element._fields[0].properties);
-        });
-        if (gh == totalnode - 1) {
-          var end = new Date().getTime();
-          var time = end - start;
-          console.log("Execution time: " + time / 1000);
-        }
+        pushMetric("writeNode.getFollowing", timer);
+        pushMetric("writeNodeStatus.getFollowing.success", timer);
       })
       .catch((err) => {
         console.log("error: " + err);
-        //session.close();
+        pushMetric("writeNodeStatus.getFollowing.error", timer);
+      })
+      .finally(() => {
+        session.close();
       });
-      */
-    await asyncCall2(i);
   }
 }
-insertElements();
+
+RelationsMappingArray();
+
+// 1<= a <= b <= INF
+
+//insertElements(a,b);
+insertEdges(1, 10);
 
 /*
-async function firstAsync(i) {
-  try {
-    console.log(i);
-    const result = await session.run(
-      "CREATE (a:Person {name: $name}) RETURN a",
-      { name: doc.name }
-    );
-    const singleRecord = result.records[0];
-    const node = singleRecord.get(0);
+var loopCount = 0;
 
-    // console.log(node.properties.name);
-  } finally {
-    console.log(i + 1);
-    await session.close();
+var inerval = setInterval(() => {
+  // you can call function with parameter updates
+
+  function_name(loopCount * 100, (loopCount + 1) * 100);
+
+  if (loopCount == 1) {
+    clearInterval(inerval);
   }
-}
-*/
+  loopCount++;
+}, 30000);
 
-app.listen(port, hostname, () => {
-  console.log(`Server running at http://${hostname}:${port}/`);
-});
+*/
